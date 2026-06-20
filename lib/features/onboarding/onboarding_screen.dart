@@ -3,8 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/routes/app_routes.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_text_styles.dart';
-import '../../widgets/custom_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -17,39 +15,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<_OnboardingPage> _pages = const [
-    _OnboardingPage(
-      bgColorStart: Color(0xFF1E3A8A),
-      bgColorEnd: Color(0xFF1A56DB),
-      icon: Icons.assignment_turned_in_rounded,
-      iconColor: Colors.white,
-      iconBgColor: Color(0x33FFFFFF),
+  static const _pages = [
+    _PageData(
+      image: 'assets/images/images - 2026-06-17T211018.812.jpg',
+      tamilTitle: 'வரவேற்கிறோம்',
+      title: 'Veera Vidhai',
+      description:
+          'Welcome to our Silambam training academy. Manage attendance, '
+          'fees and everything in one beautiful place.',
+    ),
+    _PageData(
+      image: 'assets/images/images - 2026-06-17T210836.794.jpg',
+      tamilTitle: 'வருகை பதிவு',
       title: 'Track Attendance',
       description:
-          'Know who\'s present or absent every day with ease. Real-time updates keep you informed at all times.',
-      isDark: true,
+          'Slide to check in every day. Your trainer instantly sees who '
+          'is present and at what time.',
     ),
-    _OnboardingPage(
-      bgColorStart: Color(0xFFF5F7FF),
-      bgColorEnd: Color(0xFFEBF5FF),
-      icon: Icons.currency_rupee_rounded,
-      iconColor: Color(0xFF1A56DB),
-      iconBgColor: Color(0xFFEBF5FF),
-      title: 'Manage Fees',
-      description:
-          'Track fee payments and get instant payment status updates. Never miss a pending payment again.',
-      isDark: false,
-    ),
-    _OnboardingPage(
-      bgColorStart: Color(0xFF1A56DB),
-      bgColorEnd: Color(0xFF1E3A8A),
-      icon: Icons.emoji_events_rounded,
-      iconColor: Colors.white,
-      iconBgColor: Color(0x33FFFFFF),
+    _PageData(
+      image: 'assets/images/Silambam_martial-art_gounesco.jpg',
+      tamilTitle: 'சிறப்பை அடையுங்கள்',
       title: 'Achieve Excellence',
       description:
-          'Monitor progress, view detailed reports and motivate your students to reach their full potential.',
-      isDark: true,
+          'Track fees, follow your progress and rise in Silambam. '
+          'Veera Vidhai is with you every step.',
     ),
   ];
 
@@ -59,134 +48,160 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  void _goToNext() {
+  void _next() {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOut);
     } else {
-      Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
+      _goToRole();
     }
   }
+
+  void _goToRole() =>
+      Navigator.pushReplacementNamed(context, AppRoutes.roleSelection);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: _pages.length,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (context, index) => _buildPage(_pages[index]),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF7C2D12), AppColors.primaryDark, AppColors.primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          // Bottom controls
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
-              child: Column(
-                children: [
-                  SmoothPageIndicator(
-                    controller: _pageController,
-                    count: _pages.length,
-                    effect: ExpandingDotsEffect(
-                      activeDotColor: _pages[_currentPage].isDark
-                          ? AppColors.secondary
-                          : AppColors.primary,
-                      dotColor: _pages[_currentPage].isDark
-                          ? Colors.white38
-                          : AppColors.border,
-                      dotHeight: 8,
-                      dotWidth: 8,
-                      expansionFactor: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  CustomButton(
-                    label: _currentPage == _pages.length - 1
-                        ? 'Get Started'
-                        : 'Next',
-                    onPressed: _goToNext,
-                    backgroundColor: _pages[_currentPage].isDark
-                        ? AppColors.secondary
-                        : AppColors.primary,
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => Navigator.pushReplacementNamed(
-                        context, AppRoutes.roleSelection),
-                    child: Text(
-                      'Skip',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: _pages[_currentPage].isDark
-                            ? Colors.white60
-                            : AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top bar
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: AppColors.secondary.withValues(alpha: 0.8),
+                            width: 1.5),
+                        color: Colors.black26,
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (c, e, s) => const Icon(
+                              Icons.sports_martial_arts,
+                              color: Colors.white,
+                              size: 22),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'வீர விதை',
+                        style: GoogleFonts.notoSansTamil(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _goToRole,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Text('Skip',
+                            style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildPage(_OnboardingPage page) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [page.bgColorStart, page.bgColorEnd],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 60, 32, 160),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Illustration container
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  color: page.iconBgColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  page.icon,
-                  size: 90,
-                  color: page.iconColor,
+              // Pages
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (i) => setState(() => _currentPage = i),
+                  itemBuilder: (context, index) =>
+                      _PageView(data: _pages[index]),
                 ),
               ),
-              const SizedBox(height: 48),
-              Text(
-                page.title,
-                style: AppTextStyles.headlineLarge.copyWith(
-                  color: page.isDark ? Colors.white : AppColors.textPrimary,
-                  fontSize: 28,
+
+              // Dots + button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(28, 8, 28, 28),
+                child: Row(
+                  children: [
+                    SmoothPageIndicator(
+                      controller: _pageController,
+                      count: _pages.length,
+                      effect: const ExpandingDotsEffect(
+                        activeDotColor: AppColors.secondary,
+                        dotColor: Colors.white30,
+                        dotHeight: 8,
+                        dotWidth: 8,
+                        expansionFactor: 3.5,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _next,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondary,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  AppColors.secondary.withValues(alpha: 0.5),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _currentPage == _pages.length - 1
+                                  ? 'Get Started'
+                                  : 'Next',
+                              style: GoogleFonts.poppins(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded,
+                                color: Colors.white, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                page.description,
-                style: AppTextStyles.bodyLarge.copyWith(
-                  color: page.isDark
-                      ? Colors.white70
-                      : AppColors.textSecondary,
-                  height: 1.6,
-                ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -196,24 +211,116 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 }
 
-class _OnboardingPage {
-  final Color bgColorStart;
-  final Color bgColorEnd;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBgColor;
+class _PageView extends StatelessWidget {
+  final _PageData data;
+  const _PageView({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          // Framed image — proper aspect ratio, no stretch
+          Expanded(
+            flex: 5,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 24,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+                border: Border.all(
+                    color: AppColors.secondary.withValues(alpha: 0.4),
+                    width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: Image.asset(
+                  data.image,
+                  fit: BoxFit.cover,
+                  errorBuilder: (c, e, s) => Container(
+                    color: AppColors.primaryDark,
+                    child: const Center(
+                      child: Icon(Icons.sports_martial_arts,
+                          size: 90, color: Colors.white30),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          // Text content
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: AppColors.secondary.withValues(alpha: 0.6)),
+                  ),
+                  child: Text(
+                    data.tamilTitle,
+                    style: GoogleFonts.notoSansTamil(
+                      fontSize: 14,
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  data.title,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  data.description,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.85),
+                    height: 1.6,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PageData {
+  final String image;
+  final String tamilTitle;
   final String title;
   final String description;
-  final bool isDark;
 
-  const _OnboardingPage({
-    required this.bgColorStart,
-    required this.bgColorEnd,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBgColor,
+  const _PageData({
+    required this.image,
+    required this.tamilTitle,
     required this.title,
     required this.description,
-    required this.isDark,
   });
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Primary palette
-  static const Color primary = Color(0xFF1A56DB);
-  static const Color primaryDark = Color(0xFF1E3A8A);
-  static const Color primaryLight = Color(0xFFEBF5FF);
+  // Primary palette — Silambam orange
+  static const Color primary = Color(0xFFEA580C);
+  static const Color primaryDark = Color(0xFF9A3412);
+  static const Color primaryLight = Color(0xFFFFEDD5);
 
-  // Secondary / cultural accent
-  static const Color secondary = Color(0xFFD97706);
+  // Secondary / cultural accent — gold
+  static const Color secondary = Color(0xFFF59E0B);
+  static const Color accent = Color(0xFF7C2D12); // deep maroon
 
   // Semantic
   static const Color success = Color(0xFF16A34A);
@@ -18,7 +19,7 @@ class AppColors {
   static const Color warningLight = Color(0xFFFEF3C7);
 
   // Neutral (light mode)
-  static const Color background = Color(0xFFF5F7FF);
+  static const Color background = Color(0xFFFFF8F3);
   static const Color surface = Colors.white;
   static const Color textPrimary = Color(0xFF1A1A2E);
   static const Color textSecondary = Color(0xFF6B7280);

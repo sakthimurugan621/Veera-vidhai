@@ -34,7 +34,7 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 2,
-        shadowColor: Color.fromRGBO(26, 86, 219, 0.08),
+        shadowColor: Color.fromRGBO(234, 88, 12, 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
         ),
@@ -220,7 +220,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return Color.fromRGBO(26, 86, 219, 0.3);
+            return Color.fromRGBO(234, 88, 12, 0.3);
           }
           return AppColors.darkBorder;
         }),

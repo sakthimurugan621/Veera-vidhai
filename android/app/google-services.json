@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "504796962547",
+    "project_id": "veera-vidhai",
+    "storage_bucket": "veera-vidhai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:504796962547:android:37bc2abd542c1d917be186",
+        "android_client_info": {
+          "package_name": "com.example.veera_vidhai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7OZU1-9j3DlUzxRtRG--E4nkBwhRdREo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
