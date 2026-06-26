@@ -17,7 +17,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _PageData(
-      image: 'assets/images/images - 2026-06-17T211018.812.jpg',
+      icon: Icons.sports_martial_arts_rounded,
       tamilTitle: 'வரவேற்கிறோம்',
       title: 'Veera Vidhai',
       description:
@@ -25,7 +25,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'fees and everything in one beautiful place.',
     ),
     _PageData(
-      image: 'assets/images/images - 2026-06-17T210836.794.jpg',
+      icon: Icons.swipe_right_rounded,
       tamilTitle: 'வருகை பதிவு',
       title: 'Track Attendance',
       description:
@@ -33,7 +33,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           'is present and at what time.',
     ),
     _PageData(
-      image: 'assets/images/Silambam_martial-art_gounesco.jpg',
+      icon: Icons.emoji_events_rounded,
       tamilTitle: 'சிறப்பை அடையுங்கள்',
       title: 'Achieve Excellence',
       description:
@@ -222,37 +222,13 @@ class _PageView extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 8),
-          // Framed image — proper aspect ratio, no stretch
+          // Icon hero — concentric glowing rings (scales down on small screens)
           Expanded(
             flex: 5,
-            child: Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    blurRadius: 24,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
-                border: Border.all(
-                    color: AppColors.secondary.withValues(alpha: 0.4),
-                    width: 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: Image.asset(
-                  data.image,
-                  fit: BoxFit.cover,
-                  errorBuilder: (c, e, s) => Container(
-                    color: AppColors.primaryDark,
-                    child: const Center(
-                      child: Icon(Icons.sports_martial_arts,
-                          size: 90, color: Colors.white30),
-                    ),
-                  ),
-                ),
+            child: Center(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: _IconHero(icon: data.icon),
               ),
             ),
           ),
@@ -311,14 +287,137 @@ class _PageView extends StatelessWidget {
   }
 }
 
+/// An animated icon "hero": a glowing pulsing core wrapped in two slowly
+/// rotating decorative rings. Replaces the onboarding images.
+class _IconHero extends StatefulWidget {
+  final IconData icon;
+  const _IconHero({required this.icon});
+
+  @override
+  State<_IconHero> createState() => _IconHeroState();
+}
+
+class _IconHeroState extends State<_IconHero>
+    with TickerProviderStateMixin {
+  late final AnimationController _spin;
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _spin = AnimationController(
+        vsync: this, duration: const Duration(seconds: 14))
+      ..repeat();
+    _pulse = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1800))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 250,
+      height: 250,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Outer dashed ring (rotating)
+          RotationTransition(
+            turns: _spin,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+          // Middle ring (counter-rotating, gold arcs)
+          RotationTransition(
+            turns: Tween<double>(begin: 1, end: 0).animate(_spin),
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.secondary.withValues(alpha: 0.45),
+                  width: 2,
+                ),
+              ),
+              child: Stack(
+                children: List.generate(4, (i) {
+                  return Align(
+                    alignment: [
+                      Alignment.topCenter,
+                      Alignment.bottomCenter,
+                      Alignment.centerLeft,
+                      Alignment.centerRight,
+                    ][i],
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          // Pulsing glow + core
+          ScaleTransition(
+            scale: Tween<double>(begin: 0.94, end: 1.06).animate(
+              CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+            ),
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [AppColors.secondary, AppColors.primary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.secondary.withValues(alpha: 0.55),
+                    blurRadius: 40,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: Icon(widget.icon, size: 74, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PageData {
-  final String image;
+  final IconData icon;
   final String tamilTitle;
   final String title;
   final String description;
 
   const _PageData({
-    required this.image,
+    required this.icon,
     required this.tamilTitle,
     required this.title,
     required this.description,

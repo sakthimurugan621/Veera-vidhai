@@ -5,6 +5,7 @@ import '../../../core/utils/date_helpers.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/models/attendance_entry.dart';
 import '../../../data/services/firestore_service.dart';
+import '../../../widgets/app_logo_badge.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/live_clock.dart';
 import '../../../widgets/slide_to_action.dart';
@@ -90,6 +91,8 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
                 child: Row(
                   children: [
+                    const AppLogoBadge(size: 42),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -8,6 +8,7 @@ import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/fade_slide_in.dart';
 import '../../widgets/gradient_header.dart';
+import '../../widgets/responsive_center.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -73,7 +74,9 @@ class _LoginScreenState extends State<LoginScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-              child: Form(
+              child: ResponsiveCenter(
+                maxWidth: 460,
+                child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,6 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
             ),
           ),

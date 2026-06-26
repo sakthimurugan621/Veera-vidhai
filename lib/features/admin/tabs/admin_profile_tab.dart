@@ -7,6 +7,8 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/gradient_header.dart';
+import '../../common/about_app_screen.dart';
+import '../all_leaves_screen.dart';
 
 class AdminProfileTab extends StatelessWidget {
   const AdminProfileTab({super.key});
@@ -105,13 +107,31 @@ class AdminProfileTab extends StatelessWidget {
                 ),
                 FadeSlideIn(
                   delayMs: 60,
-                  child: _tile(context, Icons.info_outline_rounded, 'About App',
-                      subtitle: 'வீர விதை • v1.0.0'),
+                  child: _tile(
+                    context,
+                    Icons.event_busy_rounded,
+                    'Leave Requests',
+                    subtitle: 'View all student leave applications',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AllLeavesScreen()),
+                    ),
+                  ),
                 ),
                 FadeSlideIn(
                   delayMs: 120,
-                  child: _tile(context, Icons.shield_outlined, 'Silambam Academy',
-                      subtitle: 'Attendance & Fees Management'),
+                  child: _tile(
+                    context,
+                    Icons.info_outline_rounded,
+                    'About App',
+                    subtitle: 'வீர விதை • v1.0.0',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AboutAppScreen()),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 FadeSlideIn(
@@ -138,50 +158,58 @@ class AdminProfileTab extends StatelessWidget {
   }
 
   Widget _tile(BuildContext context, IconData icon, String title,
-      {String? subtitle, Widget? trailing}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(12),
+      {String? subtitle, Widget? trailing, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    )),
-                if (subtitle != null)
-                  Text(subtitle,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.textSecondary)),
-              ],
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 22),
             ),
-          ),
-          ?trailing,
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      )),
+                  if (subtitle != null)
+                    Text(subtitle,
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+            if (trailing != null)
+              trailing
+            else if (onTap != null)
+              Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary.withValues(alpha: 0.6)),
+          ],
+        ),
       ),
     );
   }

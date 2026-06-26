@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/app_student.dart';
 import '../data/services/firestore_service.dart';
+import '../data/services/notification_service.dart';
 
 /// Auth model:
 ///  - Admin  → Firebase Auth (email + password). Session persists via Firebase.
@@ -38,6 +39,7 @@ class AuthProvider extends ChangeNotifier {
     if (user != null) {
       _role = 'admin';
       _adminEmail = user.email;
+      NotificationService.instance.saveAdminToken();
       notifyListeners();
       return 'admin';
     }
@@ -51,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
         _role = 'student';
         _studentId = sid;
         _student = s;
+        NotificationService.instance.saveStudentToken(sid);
         notifyListeners();
         return 'student';
       } else {
@@ -72,6 +75,7 @@ class AuthProvider extends ChangeNotifier {
       _adminEmail = cred.user?.email;
       _studentId = null;
       _student = null;
+      NotificationService.instance.saveAdminToken();
       _setLoading(false);
       return 'admin';
     } on FirebaseAuthException catch (e) {
@@ -96,6 +100,8 @@ class AuthProvider extends ChangeNotifier {
       _studentId = s.id;
       _student = s;
 
+      NotificationService.instance.saveStudentToken(s.id);
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kStudentIdKey, s.id);
 
@@ -110,8 +116,12 @@ class AuthProvider extends ChangeNotifier {
   // ── Logout ──────────────────────────────────────────────────────────────────
   Future<void> logout() async {
     if (_role == 'admin') {
+      await NotificationService.instance.removeAdminToken();
       await _auth.signOut();
     } else if (_role == 'student') {
+      if (_studentId != null) {
+        await NotificationService.instance.removeStudentToken(_studentId!);
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kStudentIdKey);
     }

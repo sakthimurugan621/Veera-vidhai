@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_student.dart';
 import '../models/attendance_entry.dart';
+import '../models/leave_request.dart';
 
 /// Central Firestore access layer. No hardcoded data — everything is live.
 class FirestoreService {
@@ -13,6 +14,8 @@ class FirestoreService {
       _db.collection('students');
   CollectionReference<Map<String, dynamic>> get _attendance =>
       _db.collection('attendance');
+  CollectionReference<Map<String, dynamic>> get _leaves =>
+      _db.collection('leaves');
 
   // ── Students ───────────────────────────────────────────────────────────────
 
@@ -152,6 +155,7 @@ class FirestoreService {
       studentId: student.id,
       studentName: student.name,
       rollNo: student.rollNo,
+      phone: student.phone,
       date: date,
       checkInTime: checkInTime,
     );
@@ -185,5 +189,77 @@ class FirestoreService {
       });
       return list;
     });
+  }
+
+  // ── Leave requests ──────────────────────────────────────────────────────────
+
+  Future<void> applyLeave({
+    required AppStudent student,
+    required String leaveType,
+    required String comments,
+    required String fromDate,
+    required String toDate,
+  }) async {
+    await _leaves.add({
+      'studentId': student.id,
+      'studentName': student.name,
+      'rollNo': student.rollNo,
+      'phone': student.phone,
+      'leaveType': leaveType,
+      'comments': comments.trim(),
+      'fromDate': fromDate,
+      'toDate': toDate,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// A single student's leave applications, most recent first.
+  Stream<List<LeaveRequest>> studentLeavesStream(String studentId) {
+    return _leaves
+        .where('studentId', isEqualTo: studentId)
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map(LeaveRequest.fromDoc).toList();
+      list.sort((a, b) {
+        final at = a.createdAt ?? DateTime(2000);
+        final bt = b.createdAt ?? DateTime(2000);
+        return bt.compareTo(at);
+      });
+      return list;
+    });
+  }
+
+  /// Every leave request ever made (admin), most recent first.
+  Stream<List<LeaveRequest>> allLeavesStream() {
+    return _leaves.snapshots().map((snap) {
+      final list = snap.docs.map(LeaveRequest.fromDoc).toList();
+      list.sort((a, b) {
+        final at = a.createdAt ?? DateTime(2000);
+        final bt = b.createdAt ?? DateTime(2000);
+        return bt.compareTo(at);
+      });
+      return list;
+    });
+  }
+
+  /// All pending leave requests (admin), most recent first.
+  Stream<List<LeaveRequest>> pendingLeavesStream() {
+    return _leaves
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snap) {
+      final list = snap.docs.map(LeaveRequest.fromDoc).toList();
+      list.sort((a, b) {
+        final at = a.createdAt ?? DateTime(2000);
+        final bt = b.createdAt ?? DateTime(2000);
+        return bt.compareTo(at);
+      });
+      return list;
+    });
+  }
+
+  Future<void> setLeaveStatus(String id, String status) async {
+    await _leaves.doc(id).update({'status': status});
   }
 }

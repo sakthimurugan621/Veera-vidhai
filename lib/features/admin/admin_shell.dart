@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../data/services/notification_service.dart';
 import '../../widgets/app_bottom_nav.dart';
 import 'tabs/admin_home_tab.dart';
 import 'tabs/admin_students_tab.dart';
@@ -31,10 +32,12 @@ class _AdminShellState extends State<AdminShell> {
   void initState() {
     super.initState();
     _controller = PageController();
+    NotificationService.instance.startAdminListeners();
   }
 
   @override
   void dispose() {
+    NotificationService.instance.stopListeners();
     _controller.dispose();
     super.dispose();
   }

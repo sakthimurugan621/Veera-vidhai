@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import 'app_logo_badge.dart';
 
 /// A rounded orange gradient header used at the top of most screens.
 /// [tamilTitle] is the big cultural title; [subtitle] is English supporting text.
@@ -11,6 +12,7 @@ class GradientHeader extends StatelessWidget {
   final Widget? trailing;
   final List<Widget> bottom;
   final EdgeInsets padding;
+  final bool showLogo;
 
   const GradientHeader({
     super.key,
@@ -19,6 +21,7 @@ class GradientHeader extends StatelessWidget {
     this.trailing,
     this.bottom = const [],
     this.padding = const EdgeInsets.fromLTRB(20, 14, 20, 22),
+    this.showLogo = false,
   });
 
   @override
@@ -51,6 +54,10 @@ class GradientHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (showLogo) ...[
+                    const AppLogoBadge(size: 42),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

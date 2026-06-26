@@ -7,6 +7,7 @@ class AttendanceEntry {
   final String studentId;
   final String studentName;
   final String rollNo;
+  final String phone;
   final String date; // 'yyyy-MM-dd' for easy day filtering
   final String checkInTime; // 'hh:mm a'
   final DateTime? timestamp;
@@ -16,6 +17,7 @@ class AttendanceEntry {
     required this.studentId,
     required this.studentName,
     required this.rollNo,
+    this.phone = '',
     required this.date,
     required this.checkInTime,
     this.timestamp,
@@ -28,6 +30,7 @@ class AttendanceEntry {
       studentId: d['studentId'] ?? '',
       studentName: d['studentName'] ?? '',
       rollNo: d['rollNo'] ?? '',
+      phone: d['phone'] ?? '',
       date: d['date'] ?? '',
       checkInTime: d['checkInTime'] ?? '',
       timestamp: (d['timestamp'] as Timestamp?)?.toDate(),
@@ -39,6 +42,7 @@ class AttendanceEntry {
       'studentId': studentId,
       'studentName': studentName,
       'rollNo': rollNo,
+      'phone': phone,
       'date': date,
       'checkInTime': checkInTime,
       'timestamp': FieldValue.serverTimestamp(),

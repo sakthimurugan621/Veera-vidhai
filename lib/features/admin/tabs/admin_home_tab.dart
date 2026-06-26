@@ -4,6 +4,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_helpers.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/models/attendance_entry.dart';
+import '../../../data/models/leave_request.dart';
 import '../../../data/services/firestore_service.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/gradient_header.dart';
@@ -39,6 +40,7 @@ class AdminHomeTab extends StatelessWidget {
                 slivers: [
                   SliverToBoxAdapter(
                     child: GradientHeader(
+                      showLogo: true,
                       tamilTitle: 'வீர விதை',
                       subtitle: 'Admin Dashboard',
                       trailing: Container(
@@ -177,6 +179,9 @@ class AdminHomeTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
 
+                        // Pending leave requests
+                        _LeaveRequestsSection(fs: fs),
+
                         // Recent check-ins
                         Text(
                           "Today's Check-ins",
@@ -227,6 +232,205 @@ class AdminHomeTab extends StatelessWidget {
           Text(msg,
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Pending leave requests with Accept / Decline ──────────────────────────────
+class _LeaveRequestsSection extends StatelessWidget {
+  final FirestoreService fs;
+  const _LeaveRequestsSection({required this.fs});
+
+  Future<void> _setStatus(
+      BuildContext context, LeaveRequest l, String status) async {
+    await fs.setLeaveStatus(l.id, status);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(status == 'approved'
+            ? '${l.studentName}\'s leave approved'
+            : '${l.studentName}\'s leave declined'),
+        backgroundColor:
+            status == 'approved' ? AppColors.success : AppColors.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<LeaveRequest>>(
+      stream: fs.pendingLeavesStream(),
+      builder: (context, snap) {
+        final leaves = snap.data ?? [];
+        if (leaves.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Leave Requests',
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.bold,
+                    )),
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('${leaves.length}',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      )),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...leaves.asMap().entries.map(
+                  (e) => FadeSlideIn(
+                    delayMs: 60 * e.key,
+                    child: _LeaveRequestCard(
+                      leave: e.value,
+                      onAccept: () => _setStatus(context, e.value, 'approved'),
+                      onDecline: () => _setStatus(context, e.value, 'declined'),
+                    ),
+                  ),
+                ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LeaveRequestCard extends StatelessWidget {
+  final LeaveRequest leave;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  const _LeaveRequestCard({
+    required this.leave,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(Icons.event_busy_rounded,
+                    color: AppColors.warning),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(leave.studentName,
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        )),
+                    Text('Roll ${leave.rollNo} • ${leave.leaveType}',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (leave.dateRange.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.date_range_rounded,
+                    size: 15, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(leave.dateRange,
+                    style: AppTextStyles.labelMedium.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ],
+            ),
+          ],
+          if (leave.comments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.warningLight.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(leave.comments,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  )),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onDecline,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                    minimumSize: const Size(0, 42),
+                  ),
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  label: const Text('Decline'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onAccept,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    minimumSize: const Size(0, 42),
+                  ),
+                  icon: const Icon(Icons.check_rounded, size: 18),
+                  label: const Text('Accept'),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

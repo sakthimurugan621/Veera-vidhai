@@ -8,34 +8,76 @@ import '../../../data/services/firestore_service.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/gradient_header.dart';
 
-class AdminAttendanceTab extends StatelessWidget {
+class AdminAttendanceTab extends StatefulWidget {
   const AdminAttendanceTab({super.key});
 
   @override
+  State<AdminAttendanceTab> createState() => _AdminAttendanceTabState();
+}
+
+class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
+  final _fs = FirestoreService.instance;
+  late DateTime _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = DateTime.now();
+  }
+
+  bool get _isToday {
+    final n = DateTime.now();
+    return _selected.year == n.year &&
+        _selected.month == n.month &&
+        _selected.day == n.day;
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selected,
+      firstDate: DateTime(2023, 1, 1),
+      lastDate: DateTime.now(),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+              ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => _selected = picked);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final fs = FirestoreService.instance;
-    final today = DateHelpers.todayKey();
+    final dateKey = DateHelpers.todayKey(_selected);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<List<AppStudent>>(
-        stream: fs.studentsStream(),
+        stream: _fs.studentsStream(),
         builder: (context, studentSnap) {
           final students = studentSnap.data ?? [];
           return StreamBuilder<List<AttendanceEntry>>(
-            stream: fs.attendanceForDateStream(today),
+            stream: _fs.attendanceForDateStream(dateKey),
             builder: (context, attSnap) {
               final present = attSnap.data ?? [];
               final presentIds = present.map((e) => e.studentId).toSet();
-              final absent = students
-                  .where((s) => !presentIds.contains(s.id))
-                  .toList();
+              final absent =
+                  students.where((s) => !presentIds.contains(s.id)).toList();
 
               return Column(
                 children: [
                   GradientHeader(
                     tamilTitle: 'வருகை',
-                    subtitle: DateHelpers.prettyDate(),
+                    subtitle: _isToday ? 'Today' : 'Selected date',
+                    trailing: _DatePickerChip(
+                      date: DateHelpers.prettyDate(_selected),
+                      onTap: _pickDate,
+                    ),
                     bottom: [
                       const SizedBox(height: 16),
                       Row(
@@ -64,11 +106,11 @@ class AdminAttendanceTab extends StatelessWidget {
                         : ListView(
                             padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
                             children: [
-                              _sectionLabel(context, 'Checked In',
+                              _sectionLabel(context, 'Present',
                                   present.length, AppColors.success),
                               const SizedBox(height: 10),
                               if (present.isEmpty)
-                                _empty(context, 'No check-ins yet today',
+                                _empty(context, 'No check-ins on this date',
                                     small: true)
                               else
                                 ...present.asMap().entries.map(
@@ -78,11 +120,11 @@ class AdminAttendanceTab extends StatelessWidget {
                                       ),
                                     ),
                               const SizedBox(height: 22),
-                              _sectionLabel(context, 'Not Yet Present',
-                                  absent.length, AppColors.error),
+                              _sectionLabel(context, 'Absent', absent.length,
+                                  AppColors.error),
                               const SizedBox(height: 10),
                               if (absent.isEmpty)
-                                _empty(context, 'Everyone is present! 🎉',
+                                _empty(context, 'Everyone was present! 🎉',
                                     small: true)
                               else
                                 ...absent.asMap().entries.map(
@@ -161,6 +203,43 @@ class AdminAttendanceTab extends StatelessWidget {
       child: Text(msg,
           style: AppTextStyles.bodyMedium
               .copyWith(color: AppColors.textSecondary)),
+    );
+  }
+}
+
+class _DatePickerChip extends StatelessWidget {
+  final String date;
+  final VoidCallback onTap;
+  const _DatePickerChip({required this.date, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.calendar_month_rounded,
+                color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(date,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                )),
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_drop_down_rounded,
+                color: Colors.white, size: 18),
+          ],
+        ),
+      ),
     );
   }
 }
