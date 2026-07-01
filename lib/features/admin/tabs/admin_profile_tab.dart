@@ -9,6 +9,7 @@ import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/gradient_header.dart';
 import '../../common/about_app_screen.dart';
 import '../all_leaves_screen.dart';
+import '../manage_teams_screen.dart';
 
 class AdminProfileTab extends StatelessWidget {
   const AdminProfileTab({super.key});
@@ -102,6 +103,20 @@ class AdminProfileTab extends StatelessWidget {
                     trailing: Switch(
                       value: themeProvider.isDarkMode,
                       onChanged: (_) => themeProvider.toggleTheme(),
+                    ),
+                  ),
+                ),
+                FadeSlideIn(
+                  delayMs: 40,
+                  child: _tile(
+                    context,
+                    Icons.groups_rounded,
+                    'Manage Teams',
+                    subtitle: 'Rename Team A, B, C',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ManageTeamsScreen()),
                     ),
                   ),
                 ),

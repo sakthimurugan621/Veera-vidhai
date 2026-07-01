@@ -178,12 +178,16 @@ class NotificationService {
         return; // skip existing records on first load
       }
       for (final c in snap.docChanges) {
-        if (c.type == DocumentChangeType.added) {
+        if (c.type == DocumentChangeType.added ||
+            c.type == DocumentChangeType.modified) {
           final d = c.doc.data() ?? {};
-          _showSimple(
-            'New Attendance ✅',
-            '${d['studentName']} (${d['phone'] ?? ''}) checked in at ${d['checkInTime'] ?? ''}',
-          );
+          // Only alert on student self-reported absences.
+          if (d['markedBy'] == 'student' && d['status'] == 'absent') {
+            _showSimple(
+              'Student Absent 🔴',
+              '${d['studentName']} (Roll ${d['rollNo'] ?? ''}) reported absent today',
+            );
+          }
         }
       }
     }));

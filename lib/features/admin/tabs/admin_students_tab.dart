@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_helpers.dart';
+import '../../../providers/team_provider.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/services/firestore_service.dart';
 import '../../../widgets/fade_slide_in.dart';
@@ -20,9 +22,15 @@ class _AdminStudentsTabState extends State<AdminStudentsTab> {
   String _query = '';
 
   void _openForm([AppStudent? student]) {
+    final teamId = context.read<TeamProvider>().activeTeamId;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => StudentFormScreen(existing: student)),
+      MaterialPageRoute(
+        builder: (_) => StudentFormScreen(
+          existing: student,
+          defaultTeamId: teamId,
+        ),
+      ),
     );
   }
 
@@ -109,6 +117,7 @@ class _AdminStudentsTabState extends State<AdminStudentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final teamId = context.watch<TeamProvider>().activeTeamId;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       floatingActionButton: FloatingActionButton.extended(
@@ -148,7 +157,7 @@ class _AdminStudentsTabState extends State<AdminStudentsTab> {
           ),
           Expanded(
             child: StreamBuilder<List<AppStudent>>(
-              stream: _fs.studentsStream(),
+              stream: _fs.studentsStream(teamId: teamId),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

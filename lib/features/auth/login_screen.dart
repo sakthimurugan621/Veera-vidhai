@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     if (role == 'admin') {
       Navigator.pushNamedAndRemoveUntil(
-          context, AppRoutes.adminDashboard, (_) => false);
+          context, AppRoutes.teamSelect, (_) => false);
     } else if (role == 'student') {
       Navigator.pushNamedAndRemoveUntil(
           context, AppRoutes.studentDashboard, (_) => false);

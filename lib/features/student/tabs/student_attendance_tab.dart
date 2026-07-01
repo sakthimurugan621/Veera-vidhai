@@ -20,6 +20,8 @@ class StudentAttendanceTab extends StatelessWidget {
         stream: FirestoreService.instance.studentAttendanceStream(student.id),
         builder: (context, snap) {
           final history = snap.data ?? [];
+          final present = history.where((e) => e.isPresent).length;
+          final absent = history.where((e) => e.isAbsent).length;
           return Column(
             children: [
               GradientHeader(
@@ -27,30 +29,18 @@ class StudentAttendanceTab extends StatelessWidget {
                 subtitle: 'My Attendance',
                 bottom: [
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.emoji_events_rounded,
-                            color: Colors.white, size: 30),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('${history.length}',
-                                style: AppTextStyles.headlineLarge
-                                    .copyWith(color: Colors.white)),
-                            Text('Total Days Present',
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: Colors.white70)),
-                          ],
-                        ),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _headerStat(
+                            'Present', present, Icons.check_circle_rounded),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _headerStat(
+                            'Absent', absent, Icons.cancel_rounded),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -75,6 +65,33 @@ class StudentAttendanceTab extends StatelessWidget {
     );
   }
 
+  Widget _headerStat(String label, int value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white, size: 26),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$value',
+                  style: AppTextStyles.headlineMedium
+                      .copyWith(color: Colors.white)),
+              Text(label,
+                  style: AppTextStyles.labelSmall
+                      .copyWith(color: Colors.white70)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _empty(BuildContext context) {
     return Center(
       child: Column(
@@ -87,7 +104,7 @@ class StudentAttendanceTab extends StatelessWidget {
               style: AppTextStyles.titleLarge
                   .copyWith(color: AppColors.textSecondary)),
           const SizedBox(height: 4),
-          Text('Slide to check in from the Home tab',
+          Text('Your trainer will mark your attendance',
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.textSecondary)),
         ],
@@ -110,6 +127,10 @@ class _HistoryRow extends StatelessWidget {
     final month = date != null ? DateFormat('MMM').format(date) : '';
     final weekday = date != null ? DateFormat('EEEE').format(date) : entry.date;
 
+    final present = entry.isPresent;
+    final color = present ? AppColors.success : AppColors.error;
+    final bg = present ? AppColors.successLight : AppColors.errorLight;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
@@ -130,18 +151,16 @@ class _HistoryRow extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.primaryLight,
+              color: bg,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(dayNum,
-                    style: AppTextStyles.titleMedium
-                        .copyWith(color: AppColors.primary)),
+                    style: AppTextStyles.titleMedium.copyWith(color: color)),
                 Text(month,
-                    style: AppTextStyles.labelSmall
-                        .copyWith(color: AppColors.primary)),
+                    style: AppTextStyles.labelSmall.copyWith(color: color)),
               ],
             ),
           ),
@@ -156,10 +175,19 @@ class _HistoryRow extends StatelessWidget {
                     )),
                 Row(
                   children: [
-                    const Icon(Icons.access_time_rounded,
-                        size: 12, color: AppColors.textSecondary),
+                    Icon(
+                        present
+                            ? Icons.access_time_rounded
+                            : Icons.info_outline_rounded,
+                        size: 12,
+                        color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text('Checked in at ${entry.checkInTime}',
+                    Text(
+                        present
+                            ? (entry.checkInTime.isNotEmpty
+                                ? 'Present at ${entry.checkInTime}'
+                                : 'Marked present')
+                            : 'Marked absent',
                         style: AppTextStyles.bodySmall
                             .copyWith(color: AppColors.textSecondary)),
                   ],
@@ -170,12 +198,12 @@ class _HistoryRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.successLight,
+              color: bg,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text('Present',
+            child: Text(present ? 'Present' : 'Absent',
                 style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.success,
+                  color: color,
                   fontWeight: FontWeight.w600,
                 )),
           ),

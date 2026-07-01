@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../data/models/app_student.dart';
+import '../../data/models/team.dart';
 import '../../data/services/firestore_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/custom_text_field.dart';
@@ -11,7 +12,8 @@ import '../../widgets/gradient_header.dart';
 /// Add or edit a student. Pass [existing] to edit.
 class StudentFormScreen extends StatefulWidget {
   final AppStudent? existing;
-  const StudentFormScreen({super.key, this.existing});
+  final String? defaultTeamId;
+  const StudentFormScreen({super.key, this.existing, this.defaultTeamId});
 
   @override
   State<StudentFormScreen> createState() => _StudentFormScreenState();
@@ -26,6 +28,8 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
   final _address = TextEditingController();
   final _feeAmount = TextEditingController();
   String _className = 'Silambam Beginner';
+  String? _teamId;
+  List<Team> _teams = [];
   bool _loading = false;
 
   static const _classes = [
@@ -48,9 +52,22 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
       _address.text = e.address;
       _feeAmount.text = e.feeAmount.toInt().toString();
       _className = _classes.contains(e.className) ? e.className : _classes.first;
+      _teamId = e.teamId.isNotEmpty ? e.teamId : widget.defaultTeamId;
     } else {
       _feeAmount.text = '500';
+      _teamId = widget.defaultTeamId;
     }
+    _loadTeams();
+  }
+
+  Future<void> _loadTeams() async {
+    final teams = await FirestoreService.instance.getTeams();
+    if (!mounted) return;
+    setState(() {
+      _teams = teams;
+      // Ensure the selected team is valid.
+      if (_teamId == null && teams.isNotEmpty) _teamId = teams.first.id;
+    });
   }
 
   @override
@@ -79,6 +96,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           password: _password.text.trim(),
           address: _address.text.trim(),
           className: _className,
+          teamId: _teamId ?? '',
           feeAmount: fee,
         );
         await fs.updateStudent(updated);
@@ -90,6 +108,7 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           password: _password.text.trim(),
           address: _address.text.trim(),
           className: _className,
+          teamId: _teamId ?? '',
           feeAmount: fee,
         );
       }
@@ -198,6 +217,8 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
+                    _teamDropdown(context),
+                    const SizedBox(height: 16),
                     _classDropdown(context),
                     const SizedBox(height: 16),
                     CustomTextField(
@@ -231,6 +252,36 @@ class _StudentFormScreenState extends State<StudentFormScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _teamDropdown(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Team',
+            style: AppTextStyles.labelMedium.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            )),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: _teamId,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.groups_outlined,
+                color: AppColors.textSecondary, size: 20),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          ),
+          hint: const Text('Select team'),
+          items: _teams
+              .map((t) => DropdownMenuItem(value: t.id, child: Text(t.name)))
+              .toList(),
+          onChanged: (v) => setState(() => _teamId = v),
+          validator: (v) =>
+              v == null || v.isEmpty ? 'Please select a team' : null,
+        ),
+      ],
     );
   }
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_helpers.dart';
+import '../../../providers/team_provider.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/services/firestore_service.dart';
 import '../../../widgets/fade_slide_in.dart';
@@ -18,19 +20,62 @@ class _AdminFeesTabState extends State<AdminFeesTab> {
   final _fs = FirestoreService.instance;
   int _filter = 0; // 0 = all, 1 = paid, 2 = unpaid
 
-  Future<void> _togglePaid(AppStudent s) async {
-    if (s.feesPaid) {
-      await _fs.setFeeUnpaid(s.id);
-    } else {
-      await _fs.setFeePaid(s.id, DateHelpers.prettyDate());
+  // Multi-select (always available)
+  final Set<String> _selected = {};
+
+  void _toggleSelect(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
+
+  void _selectAll(List<AppStudent> list) {
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(list.map((s) => s.id));
+    });
+  }
+
+  void _clearSelection() => setState(() => _selected.clear());
+
+  Future<void> _bulkPaid() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    try {
+      await _fs.setFeePaidBatch(ids, DateHelpers.prettyDate());
+      if (!mounted) return;
+      _clearSelection();
+      _snack('${ids.length} student(s) marked as Paid', AppColors.success);
+    } catch (e) {
+      if (!mounted) return;
+      _snack('Failed: $e', AppColors.error);
     }
-    if (!mounted) return;
+  }
+
+  Future<void> _bulkUnpaid() async {
+    final ids = _selected.toList();
+    if (ids.isEmpty) return;
+    try {
+      await _fs.setFeeUnpaidBatch(ids);
+      if (!mounted) return;
+      _clearSelection();
+      _snack('${ids.length} student(s) marked as Unpaid', AppColors.error);
+    } catch (e) {
+      if (!mounted) return;
+      _snack('Failed: $e', AppColors.error);
+    }
+  }
+
+  void _snack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(s.feesPaid
-            ? '${s.name} marked as Unpaid'
-            : '${s.name} marked as Paid'),
-        backgroundColor: s.feesPaid ? AppColors.error : AppColors.success,
+        content: Text(msg),
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -148,10 +193,11 @@ class _AdminFeesTabState extends State<AdminFeesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final teamId = context.watch<TeamProvider>().activeTeamId;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<List<AppStudent>>(
-        stream: _fs.studentsStream(),
+        stream: _fs.studentsStream(teamId: teamId),
         builder: (context, snap) {
           final all = snap.data ?? [];
           final paid = all.where((s) => s.feesPaid).toList();
@@ -201,7 +247,10 @@ class _AdminFeesTabState extends State<AdminFeesTab> {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+              // Select-all toolbar (always visible)
+              _selectionToolbar(list),
+              const SizedBox(height: 10),
               Expanded(
                 child: list.isEmpty
                     ? Center(
@@ -212,19 +261,136 @@ class _AdminFeesTabState extends State<AdminFeesTab> {
                     : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                         itemCount: list.length,
-                        itemBuilder: (context, i) => FadeSlideIn(
-                          delayMs: 40 * (i % 12),
-                          child: _FeeCard(
-                            student: list[i],
-                            onToggle: () => _togglePaid(list[i]),
-                            onEdit: () => _editFee(list[i]),
-                          ),
-                        ),
+                        itemBuilder: (context, i) {
+                          final s = list[i];
+                          return FadeSlideIn(
+                            delayMs: 40 * (i % 12),
+                            child: _FeeCard(
+                              student: s,
+                              selected: _selected.contains(s.id),
+                              onTapSelect: () => _toggleSelect(s.id),
+                              onEdit: () => _editFee(s),
+                            ),
+                          );
+                        },
                       ),
               ),
+              // Bulk action bar
+              if (_selected.isNotEmpty) _bulkBar(),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _selectionToolbar(List<AppStudent> list) {
+    final allSelected =
+        list.isNotEmpty && list.every((s) => _selected.contains(s.id));
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            _selected.isEmpty
+                ? 'Tap students to select'
+                : '${_selected.length} selected',
+            style: AppTextStyles.titleMedium.copyWith(
+              color: _selected.isEmpty
+                  ? AppColors.textSecondary
+                  : Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          if (_selected.isNotEmpty) ...[
+            GestureDetector(
+              onTap: _clearSelection,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text('Clear',
+                    style: AppTextStyles.labelMedium
+                        .copyWith(color: AppColors.error)),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          GestureDetector(
+            onTap: () => allSelected ? _clearSelection() : _selectAll(list),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    allSelected
+                        ? Icons.remove_done_rounded
+                        : Icons.done_all_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(allSelected ? 'Unselect All' : 'Select All',
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bulkBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _bulkUnpaid,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  side: const BorderSide(color: AppColors.error),
+                  minimumSize: const Size(0, 48),
+                ),
+                icon: const Icon(Icons.undo_rounded, size: 18),
+                label: const Text('Mark as Unpaid'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _bulkPaid,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.success,
+                  minimumSize: const Size(0, 48),
+                ),
+                icon: const Icon(Icons.check_circle_rounded, size: 18),
+                label: const Text('Mark as Paid'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -291,87 +457,100 @@ class _AdminFeesTabState extends State<AdminFeesTab> {
 
 class _FeeCard extends StatelessWidget {
   final AppStudent student;
-  final VoidCallback onToggle;
+  final bool selected;
+  final VoidCallback onTapSelect;
   final VoidCallback onEdit;
 
   const _FeeCard({
     required this.student,
-    required this.onToggle,
+    required this.selected,
+    required this.onTapSelect,
     required this.onEdit,
   });
 
   @override
   Widget build(BuildContext context) {
     final paid = student.feesPaid;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return GestureDetector(
+      onTap: onTapSelect,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryLight
+              : Theme.of(context).cardTheme.color,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? AppColors.primary : Colors.transparent,
+            width: 1.5,
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.primaryLight,
-                child: Text(student.initials,
-                    style: AppTextStyles.titleMedium
-                        .copyWith(color: AppColors.primary)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(student.name,
-                        style: AppTextStyles.titleMedium.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        )),
-                    Text('₹${student.feeAmount.toInt()} / month',
-                        style: AppTextStyles.bodySmall
-                            .copyWith(color: AppColors.textSecondary)),
-                    if (paid && student.lastPaidDate.isNotEmpty)
-                      Text('Paid on ${student.lastPaidDate}',
-                          style: AppTextStyles.labelSmall
-                              .copyWith(color: AppColors.success)),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: onEdit,
-                icon: const Icon(Icons.edit_rounded,
-                    color: AppColors.textSecondary, size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: onToggle,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: paid ? AppColors.errorLight : AppColors.success,
-                foregroundColor: paid ? AppColors.error : Colors.white,
-                elevation: 0,
-                minimumSize: const Size(double.infinity, 44),
-              ),
-              icon: Icon(
-                  paid ? Icons.undo_rounded : Icons.check_circle_rounded,
-                  size: 18),
-              label: Text(paid ? 'Mark as Unpaid' : 'Mark as Paid'),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          children: [
+            // Selection checkbox
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            CircleAvatar(
+              radius: 22,
+              backgroundColor: AppColors.primaryLight,
+              child: Text(student.initials,
+                  style: AppTextStyles.titleMedium
+                      .copyWith(color: AppColors.primary)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(student.name,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      )),
+                  Text('₹${student.feeAmount.toInt()} / month',
+                      style: AppTextStyles.bodySmall
+                          .copyWith(color: AppColors.textSecondary)),
+                  if (paid && student.lastPaidDate.isNotEmpty)
+                    Text('Paid on ${student.lastPaidDate}',
+                        style: AppTextStyles.labelSmall
+                            .copyWith(color: AppColors.success)),
+                ],
+              ),
+            ),
+            // Status badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: paid ? AppColors.successLight : AppColors.errorLight,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(paid ? 'Paid' : 'Unpaid',
+                  style: AppTextStyles.labelSmall.copyWith(
+                    color: paid ? AppColors.success : AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ),
+            IconButton(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_rounded,
+                  color: AppColors.textSecondary, size: 20),
+            ),
+          ],
+        ),
       ),
     );
   }

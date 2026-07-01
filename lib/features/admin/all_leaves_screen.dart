@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/date_helpers.dart';
+import '../../providers/team_provider.dart';
 import '../../data/models/leave_request.dart';
 import '../../data/services/firestore_service.dart';
 import '../../widgets/fade_slide_in.dart';
@@ -36,6 +38,7 @@ class _AllLeavesScreenState extends State<AllLeavesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final teamId = context.watch<TeamProvider>().activeTeamId;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
@@ -50,7 +53,7 @@ class _AllLeavesScreenState extends State<AllLeavesScreen> {
           ),
           const SizedBox(height: 12),
           StreamBuilder<List<LeaveRequest>>(
-            stream: _fs.allLeavesStream(),
+            stream: _fs.allLeavesStream(teamId: teamId),
             builder: (context, snap) {
               final all = snap.data ?? [];
               final pending = all.where((l) => l.isPending).length;
@@ -75,7 +78,7 @@ class _AllLeavesScreenState extends State<AllLeavesScreen> {
           const SizedBox(height: 12),
           Expanded(
             child: StreamBuilder<List<LeaveRequest>>(
-              stream: _fs.allLeavesStream(),
+              stream: _fs.allLeavesStream(teamId: teamId),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());

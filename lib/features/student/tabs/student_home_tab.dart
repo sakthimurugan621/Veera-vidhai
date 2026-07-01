@@ -8,7 +8,6 @@ import '../../../data/services/firestore_service.dart';
 import '../../../widgets/app_logo_badge.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/live_clock.dart';
-import '../../../widgets/slide_to_action.dart';
 
 class StudentHomeTab extends StatefulWidget {
   final AppStudent student;
@@ -20,9 +19,9 @@ class StudentHomeTab extends StatefulWidget {
 
 class _StudentHomeTabState extends State<StudentHomeTab> {
   final _fs = FirestoreService.instance;
-  bool _checkedToday = false;
-  String? _checkInTime;
+  String? _todayStatus; // 'present' | 'absent' | null
   bool _loadingStatus = true;
+  bool _marking = false;
 
   @override
   void initState() {
@@ -32,31 +31,31 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
 
   Future<void> _loadTodayStatus() async {
     final today = DateHelpers.todayKey();
-    final done = await _fs.hasCheckedInToday(widget.student.id, today);
+    final status = await _fs.getAttendanceStatus(widget.student.id, today);
     if (mounted) {
       setState(() {
-        _checkedToday = done;
+        _todayStatus = status;
         _loadingStatus = false;
       });
     }
   }
 
-  Future<void> _checkIn() async {
-    final time = DateHelpers.nowTime();
-    await _fs.markAttendance(
+  Future<void> _markAbsent() async {
+    setState(() => _marking = true);
+    await _fs.markAbsent(
       student: widget.student,
       date: DateHelpers.todayKey(),
-      checkInTime: time,
+      markedBy: 'student',
     );
     if (!mounted) return;
     setState(() {
-      _checkedToday = true;
-      _checkInTime = time;
+      _todayStatus = 'absent';
+      _marking = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Attendance marked at $time'),
-        backgroundColor: AppColors.success,
+        content: const Text('Marked absent for today. Your trainer is notified.'),
+        backgroundColor: AppColors.error,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -102,16 +101,55 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
                               style: AppTextStyles.headlineSmall
                                   .copyWith(color: Colors.white)),
                           const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text('Roll ${s.rollNo} • ${s.className}',
-                                style: AppTextStyles.labelSmall
-                                    .copyWith(color: Colors.white)),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text('Roll ${s.rollNo}',
+                                    style: AppTextStyles.labelSmall
+                                        .copyWith(color: Colors.white)),
+                              ),
+                              // Team name chip (gold)
+                              StreamBuilder<String?>(
+                                stream: _fs.teamNameStream(s.teamId),
+                                builder: (context, snap) {
+                                  final team = snap.data;
+                                  if (team == null || team.isEmpty) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.secondary
+                                          .withValues(alpha: 0.9),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.groups_rounded,
+                                            color: Colors.white, size: 12),
+                                        const SizedBox(width: 4),
+                                        Text(team,
+                                            style: AppTextStyles.labelSmall
+                                                .copyWith(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700,
+                                            )),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -159,7 +197,9 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
                     stream: _fs.studentAttendanceStream(s.id),
                     builder: (context, snap) {
                       final history = snap.data ?? [];
-                      return _attendanceSummary(context, history.length);
+                      final present =
+                          history.where((e) => e.isPresent).length;
+                      return _attendanceSummary(context, present);
                     },
                   ),
                 ),
@@ -173,21 +213,14 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
             ),
           ),
 
-          // Slide to check in
+          // Mark Absent (student can only report absence; admin marks present)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
             child: _loadingStatus
                 ? const SizedBox(
-                    height: 64,
+                    height: 56,
                     child: Center(child: CircularProgressIndicator()))
-                : SlideToAction(
-                    confirmed: _checkedToday,
-                    idleLabel: 'Slide to Check In',
-                    doneLabel: _checkInTime != null
-                        ? 'Checked In  $_checkInTime ✓'
-                        : 'Already Checked In ✓',
-                    onConfirm: _checkIn,
-                  ),
+                : _absentButton(context),
           ),
         ],
       ),
@@ -238,8 +271,28 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
   }
 
   Widget _statusCard(BuildContext context) {
-    final color = _checkedToday ? AppColors.success : AppColors.error;
-    final bg = _checkedToday ? AppColors.successLight : AppColors.errorLight;
+    final isPresent = _todayStatus == 'present';
+    final isAbsent = _todayStatus == 'absent';
+    final color = isPresent
+        ? AppColors.success
+        : isAbsent
+            ? AppColors.error
+            : AppColors.warning;
+    final bg = isPresent
+        ? AppColors.successLight
+        : isAbsent
+            ? AppColors.errorLight
+            : AppColors.warningLight;
+    final label = isPresent
+        ? 'Present'
+        : isAbsent
+            ? 'Absent'
+            : 'Not Marked';
+    final sub = isPresent
+        ? 'By trainer'
+        : isAbsent
+            ? 'You reported'
+            : 'Waiting';
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -253,9 +306,11 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
           Row(
             children: [
               Icon(
-                  _checkedToday
+                  isPresent
                       ? Icons.check_circle_rounded
-                      : Icons.access_time_rounded,
+                      : isAbsent
+                          ? Icons.cancel_rounded
+                          : Icons.access_time_rounded,
                   color: color,
                   size: 16),
               const SizedBox(width: 4),
@@ -265,14 +320,102 @@ class _StudentHomeTabState extends State<StudentHomeTab> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(_checkedToday ? 'Present' : 'Not Marked',
+          Text(label,
               style: AppTextStyles.titleLarge
                   .copyWith(color: color, fontWeight: FontWeight.bold)),
-          Text(_checkInTime != null ? 'At $_checkInTime' : 'Slide below',
-              style: AppTextStyles.bodySmall.copyWith(color: color)),
+          Text(sub, style: AppTextStyles.bodySmall.copyWith(color: color)),
         ],
       ),
     );
+  }
+
+  Widget _absentButton(BuildContext context) {
+    if (_todayStatus == 'present') {
+      return Container(
+        height: 56,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.successLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.check_circle_rounded, color: AppColors.success),
+            const SizedBox(width: 8),
+            Text('You are marked Present today',
+                style: AppTextStyles.titleMedium
+                    .copyWith(color: AppColors.success)),
+          ],
+        ),
+      );
+    }
+    if (_todayStatus == 'absent') {
+      return Container(
+        height: 56,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.errorLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.cancel_rounded, color: AppColors.error),
+            const SizedBox(width: 8),
+            Text('You reported Absent today',
+                style:
+                    AppTextStyles.titleMedium.copyWith(color: AppColors.error)),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      height: 56,
+      child: ElevatedButton.icon(
+        onPressed: _marking ? null : _confirmAbsent,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.error,
+          minimumSize: const Size(double.infinity, 56),
+        ),
+        icon: _marking
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.event_busy_rounded),
+        label: const Text("I'm Absent Today"),
+      ),
+    );
+  }
+
+  Future<void> _confirmAbsent() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Mark Absent?', style: AppTextStyles.headlineSmall),
+        content: Text(
+          'This tells your trainer you will be absent today. Continue?',
+          style: AppTextStyles.bodyMedium
+              .copyWith(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Yes, Absent'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) _markAbsent();
   }
 
   Widget _feeCard(BuildContext context, AppStudent s) {

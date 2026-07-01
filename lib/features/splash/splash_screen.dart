@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen>
     final role = await context.read<AuthProvider>().checkAuthState();
     if (!mounted) return;
     if (role == 'admin') {
-      Navigator.pushReplacementNamed(context, AppRoutes.adminDashboard);
+      Navigator.pushReplacementNamed(context, AppRoutes.teamSelect);
     } else if (role == 'student') {
       Navigator.pushReplacementNamed(context, AppRoutes.studentDashboard);
     } else {

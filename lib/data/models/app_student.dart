@@ -10,6 +10,7 @@ class AppStudent {
   final String password;
   final String className;
   final String address;
+  final String teamId;
   final double feeAmount; // monthly fee
   final String feeStatus; // 'paid' | 'unpaid'
   final String lastPaidDate; // 'dd MMM yyyy' or ''
@@ -23,6 +24,7 @@ class AppStudent {
     required this.password,
     this.className = 'Silambam Beginner',
     this.address = '',
+    this.teamId = '',
     this.feeAmount = 500,
     this.feeStatus = 'unpaid',
     this.lastPaidDate = '',
@@ -50,6 +52,7 @@ class AppStudent {
       password: d['password'] ?? '',
       className: d['className'] ?? 'Silambam Beginner',
       address: d['address'] ?? '',
+      teamId: d['teamId'] ?? '',
       feeAmount: (d['feeAmount'] ?? 500).toDouble(),
       feeStatus: d['feeStatus'] ?? 'unpaid',
       lastPaidDate: d['lastPaidDate'] ?? '',
@@ -65,6 +68,7 @@ class AppStudent {
       'password': password,
       'className': className,
       'address': address,
+      'teamId': teamId,
       'feeAmount': feeAmount,
       'feeStatus': feeStatus,
       'lastPaidDate': lastPaidDate,
@@ -78,6 +82,7 @@ class AppStudent {
     String? password,
     String? className,
     String? address,
+    String? teamId,
     double? feeAmount,
     String? feeStatus,
     String? lastPaidDate,
@@ -90,6 +95,7 @@ class AppStudent {
       password: password ?? this.password,
       className: className ?? this.className,
       address: address ?? this.address,
+      teamId: teamId ?? this.teamId,
       feeAmount: feeAmount ?? this.feeAmount,
       feeStatus: feeStatus ?? this.feeStatus,
       lastPaidDate: lastPaidDate ?? this.lastPaidDate,

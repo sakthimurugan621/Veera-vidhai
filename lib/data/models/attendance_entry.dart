@@ -1,15 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// A single attendance check-in stored in Firestore `attendance` collection.
-/// One document is created when a student swipes to check in.
+/// A single day's attendance record for a student, stored in Firestore
+/// `attendance` collection with a deterministic id `${studentId}_${date}`
+/// so there is exactly one record per student per day.
 class AttendanceEntry {
   final String id;
   final String studentId;
   final String studentName;
   final String rollNo;
   final String phone;
-  final String date; // 'yyyy-MM-dd' for easy day filtering
-  final String checkInTime; // 'hh:mm a'
+  final String teamId;
+  final String date; // 'yyyy-MM-dd'
+  final String status; // 'present' | 'absent'
+  final String checkInTime; // 'hh:mm a' (only for present)
+  final String markedBy; // 'admin' | 'student'
   final DateTime? timestamp;
 
   const AttendanceEntry({
@@ -18,10 +22,16 @@ class AttendanceEntry {
     required this.studentName,
     required this.rollNo,
     this.phone = '',
+    this.teamId = '',
     required this.date,
-    required this.checkInTime,
+    this.status = 'present',
+    this.checkInTime = '',
+    this.markedBy = 'admin',
     this.timestamp,
   });
+
+  bool get isPresent => status == 'present';
+  bool get isAbsent => status == 'absent';
 
   factory AttendanceEntry.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? {};
@@ -31,21 +41,12 @@ class AttendanceEntry {
       studentName: d['studentName'] ?? '',
       rollNo: d['rollNo'] ?? '',
       phone: d['phone'] ?? '',
+      teamId: d['teamId'] ?? '',
       date: d['date'] ?? '',
+      status: d['status'] ?? 'present',
       checkInTime: d['checkInTime'] ?? '',
+      markedBy: d['markedBy'] ?? 'admin',
       timestamp: (d['timestamp'] as Timestamp?)?.toDate(),
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'studentId': studentId,
-      'studentName': studentName,
-      'rollNo': rollNo,
-      'phone': phone,
-      'date': date,
-      'checkInTime': checkInTime,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
   }
 }

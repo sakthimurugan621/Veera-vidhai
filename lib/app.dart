@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
 import 'features/admin/admin_shell.dart';
+import 'features/admin/team_select_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/auth/role_selection_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -34,6 +35,8 @@ class VeeraVidhaiApp extends StatelessWidget {
                 return _page(const RoleSelectionScreen());
               case AppRoutes.login:
                 return _page(const LoginScreen(), settings);
+              case AppRoutes.teamSelect:
+                return _page(const TeamSelectScreen());
               case AppRoutes.adminDashboard:
                 return _page(const AdminShell());
               case AppRoutes.studentDashboard:

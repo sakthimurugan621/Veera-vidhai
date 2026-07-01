@@ -7,6 +7,7 @@ class LeaveRequest {
   final String studentName;
   final String rollNo;
   final String phone;
+  final String teamId;
   final String leaveType;
   final String comments;
   final String fromDate; // 'dd MMM yyyy'
@@ -20,6 +21,7 @@ class LeaveRequest {
     required this.studentName,
     required this.rollNo,
     this.phone = '',
+    this.teamId = '',
     required this.leaveType,
     required this.comments,
     this.fromDate = '',
@@ -47,6 +49,7 @@ class LeaveRequest {
       studentName: d['studentName'] ?? '',
       rollNo: d['rollNo'] ?? '',
       phone: d['phone'] ?? '',
+      teamId: d['teamId'] ?? '',
       leaveType: d['leaveType'] ?? '',
       comments: d['comments'] ?? '',
       fromDate: d['fromDate'] ?? '',

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/date_helpers.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/models/attendance_entry.dart';
 import '../../../data/services/firestore_service.dart';
+import '../../../providers/team_provider.dart';
 import '../../../widgets/fade_slide_in.dart';
 import '../../../widgets/gradient_header.dart';
+import '../student_attendance_detail.dart';
 
 class AdminAttendanceTab extends StatefulWidget {
   const AdminAttendanceTab({super.key});
@@ -51,29 +54,55 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     if (picked != null) setState(() => _selected = picked);
   }
 
+  Future<void> _setPresent(AppStudent s, String date) async {
+    await _fs.markPresent(
+      student: s,
+      date: date,
+      checkInTime: DateHelpers.nowTime(),
+      markedBy: 'admin',
+    );
+  }
+
+  Future<void> _setAbsent(AppStudent s, String date) async {
+    await _fs.markAbsent(student: s, date: date, markedBy: 'admin');
+  }
+
+  void _openDetail(AppStudent s) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => StudentAttendanceDetail(student: s)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final teamId = context.watch<TeamProvider>().activeTeamId;
     final dateKey = DateHelpers.todayKey(_selected);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<List<AppStudent>>(
-        stream: _fs.studentsStream(),
+        stream: _fs.studentsStream(teamId: teamId),
         builder: (context, studentSnap) {
           final students = studentSnap.data ?? [];
           return StreamBuilder<List<AttendanceEntry>>(
-            stream: _fs.attendanceForDateStream(dateKey),
+            stream: _fs.attendanceForDateStream(dateKey, teamId: teamId),
             builder: (context, attSnap) {
-              final present = attSnap.data ?? [];
-              final presentIds = present.map((e) => e.studentId).toSet();
-              final absent =
-                  students.where((s) => !presentIds.contains(s.id)).toList();
+              final entries = attSnap.data ?? [];
+              final entryById = <String, AttendanceEntry>{
+                for (final e in entries) e.studentId: e,
+              };
+              final presentCount =
+                  entryById.values.where((e) => e.isPresent).length;
+              final absentCount =
+                  entryById.values.where((e) => e.isAbsent).length;
+              final unmarked = students.length - entryById.length;
 
               return Column(
                 children: [
                   GradientHeader(
                     tamilTitle: 'வருகை',
-                    subtitle: _isToday ? 'Today' : 'Selected date',
+                    subtitle: _isToday ? 'Today — tap to mark' : 'Mark attendance',
                     trailing: _DatePickerChip(
                       date: DateHelpers.prettyDate(_selected),
                       onTap: _pickDate,
@@ -83,57 +112,44 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
                       Row(
                         children: [
                           Expanded(
-                            child: _miniStat('Present', '${present.length}',
-                                Icons.check_circle_rounded),
-                          ),
-                          const SizedBox(width: 12),
+                              child: _miniStat('Present', presentCount,
+                                  Icons.check_circle_rounded)),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: _miniStat('Absent', '${absent.length}',
-                                Icons.cancel_rounded),
-                          ),
-                          const SizedBox(width: 12),
+                              child: _miniStat('Absent', absentCount,
+                                  Icons.cancel_rounded)),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: _miniStat('Total', '${students.length}',
-                                Icons.groups_rounded),
-                          ),
+                              child: _miniStat('Left', unmarked < 0 ? 0 : unmarked,
+                                  Icons.pending_rounded)),
                         ],
                       ),
                     ],
                   ),
                   Expanded(
                     child: students.isEmpty
-                        ? _empty(context, 'No students registered yet')
-                        : ListView(
+                        ? _empty(context)
+                        : ListView.builder(
                             padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                            children: [
-                              _sectionLabel(context, 'Present',
-                                  present.length, AppColors.success),
-                              const SizedBox(height: 10),
-                              if (present.isEmpty)
-                                _empty(context, 'No check-ins on this date',
-                                    small: true)
-                              else
-                                ...present.asMap().entries.map(
-                                      (e) => FadeSlideIn(
-                                        delayMs: 40 * e.key,
-                                        child: _PresentRow(entry: e.value),
-                                      ),
-                                    ),
-                              const SizedBox(height: 22),
-                              _sectionLabel(context, 'Absent', absent.length,
-                                  AppColors.error),
-                              const SizedBox(height: 10),
-                              if (absent.isEmpty)
-                                _empty(context, 'Everyone was present! 🎉',
-                                    small: true)
-                              else
-                                ...absent.asMap().entries.map(
-                                      (e) => FadeSlideIn(
-                                        delayMs: 40 * e.key,
-                                        child: _AbsentRow(student: e.value),
-                                      ),
-                                    ),
-                            ],
+                            itemCount: students.length,
+                            itemBuilder: (context, i) {
+                              final s = students[i];
+                              final entry = entryById[s.id];
+                              return FadeSlideIn(
+                                delayMs: 30 * (i % 14),
+                                child: _StudentAttendanceRow(
+                                  student: s,
+                                  status: entry?.status,
+                                  // Student self-reported absence is locked.
+                                  lockedAbsent: entry != null &&
+                                      entry.isAbsent &&
+                                      entry.markedBy == 'student',
+                                  onPresent: () => _setPresent(s, dateKey),
+                                  onAbsent: () => _setAbsent(s, dateKey),
+                                  onTapName: () => _openDetail(s),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],
@@ -145,7 +161,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     );
   }
 
-  Widget _miniStat(String label, String value, IconData icon) {
+  Widget _miniStat(String label, int value, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
@@ -156,7 +172,7 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
         children: [
           Icon(icon, color: Colors.white, size: 20),
           const SizedBox(height: 4),
-          Text(value,
+          Text('$value',
               style: AppTextStyles.titleLarge.copyWith(color: Colors.white)),
           Text(label,
               style: AppTextStyles.labelSmall.copyWith(color: Colors.white70)),
@@ -165,44 +181,156 @@ class _AdminAttendanceTabState extends State<AdminAttendanceTab> {
     );
   }
 
-  Widget _sectionLabel(
-      BuildContext context, String text, int count, Color color) {
-    return Row(
-      children: [
-        Container(width: 4, height: 18, color: color),
-        const SizedBox(width: 8),
-        Text(text,
-            style: AppTextStyles.titleLarge.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontWeight: FontWeight.bold,
-            )),
-        const SizedBox(width: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text('$count',
-              style: AppTextStyles.labelSmall
-                  .copyWith(color: color, fontWeight: FontWeight.w700)),
-        ),
-      ],
+  Widget _empty(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.groups_outlined,
+              size: 64, color: AppColors.textSecondary.withValues(alpha: 0.4)),
+          const SizedBox(height: 12),
+          Text('No students in this team',
+              style: AppTextStyles.titleMedium
+                  .copyWith(color: AppColors.textSecondary)),
+        ],
+      ),
     );
   }
+}
 
-  Widget _empty(BuildContext context, String msg, {bool small = false}) {
+class _StudentAttendanceRow extends StatelessWidget {
+  final AppStudent student;
+  final String? status; // 'present' | 'absent' | null
+  final bool lockedAbsent; // student self-reported absent → not editable
+  final VoidCallback onPresent;
+  final VoidCallback onAbsent;
+  final VoidCallback onTapName;
+
+  const _StudentAttendanceRow({
+    required this.student,
+    required this.status,
+    this.lockedAbsent = false,
+    required this.onPresent,
+    required this.onAbsent,
+    required this.onTapName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(small ? 18 : 40),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      alignment: Alignment.center,
-      child: Text(msg,
-          style: AppTextStyles.bodyMedium
-              .copyWith(color: AppColors.textSecondary)),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onTapName,
+            child: Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryDark]),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(student.initials,
+                    style: AppTextStyles.titleMedium
+                        .copyWith(color: Colors.white)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: onTapName,
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(student.name,
+                      style: AppTextStyles.titleMedium.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      )),
+                  Text('Roll ${student.rollNo} • view schedule',
+                      style: AppTextStyles.labelSmall
+                          .copyWith(color: AppColors.textSecondary)),
+                ],
+              ),
+            ),
+          ),
+          // Student self-reported absent → locked badge. Else editable toggle.
+          if (lockedAbsent)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cancel_rounded,
+                      color: AppColors.error, size: 16),
+                  const SizedBox(width: 5),
+                  Text('Absent',
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w700,
+                      )),
+                ],
+              ),
+            )
+          else ...[
+            _toggle(
+              icon: Icons.check_rounded,
+              selected: status == 'present',
+              color: AppColors.success,
+              onTap: onPresent,
+            ),
+            const SizedBox(width: 8),
+            _toggle(
+              icon: Icons.close_rounded,
+              selected: status == 'absent',
+              color: AppColors.error,
+              onTap: onAbsent,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _toggle({
+    required IconData icon,
+    required bool selected,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: selected ? color : color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: selected ? 0 : 1.2),
+        ),
+        child: Icon(icon, color: selected ? Colors.white : color, size: 22),
+      ),
     );
   }
 }
@@ -234,130 +362,10 @@ class _DatePickerChip extends StatelessWidget {
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 )),
-            const SizedBox(width: 4),
             const Icon(Icons.arrow_drop_down_rounded,
                 color: Colors.white, size: 18),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PresentRow extends StatelessWidget {
-  final AttendanceEntry entry;
-  const _PresentRow({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.successLight,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: const Icon(Icons.check_rounded, color: AppColors.success),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(entry.studentName,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    )),
-                Text('Roll ${entry.rollNo}',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              const Icon(Icons.access_time_rounded,
-                  size: 14, color: AppColors.success),
-              const SizedBox(width: 4),
-              Text(entry.checkInTime,
-                  style: AppTextStyles.labelMedium.copyWith(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  )),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AbsentRow extends StatelessWidget {
-  final AppStudent student;
-  const _AbsentRow({required this.student});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardTheme.color,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.errorLight,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Center(
-              child: Text(student.initials,
-                  style: AppTextStyles.titleMedium
-                      .copyWith(color: AppColors.error)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(student.name,
-                    style: AppTextStyles.titleMedium.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    )),
-                Text('Roll ${student.rollNo}',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.errorLight,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text('Absent',
-                style: AppTextStyles.labelSmall.copyWith(
-                  color: AppColors.error,
-                  fontWeight: FontWeight.w600,
-                )),
-          ),
-        ],
       ),
     );
   }

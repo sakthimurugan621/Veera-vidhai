@@ -66,61 +66,18 @@ exports.onAttendanceCreated = onDocumentCreated(
       const data = event.data && event.data.data();
       if (!data) return;
 
+      // Only notify admins when a STUDENT self-reports absent.
+      if (data.markedBy !== "student" || data.status !== "absent") return;
+
       const name = data.studentName || "A student";
-      const phone = data.phone || "";
-      const time = data.checkInTime || "";
+      const roll = data.rollNo || "";
 
-      // Collect all admin device tokens.
-      const db = getFirestore();
-      const tokensSnap = await db.collection("admin_tokens").get();
-      const tokens = tokensSnap.docs.map((d) => d.id);
-      if (tokens.length === 0) {
-        console.log("No admin tokens registered — nothing to send.");
-        return;
-      }
-
-      const message = {
-        notification: {
-          title: "New Attendance ✅",
-          body: `${name} (${phone}) checked in at ${time}`,
-        },
-        android: {
-          priority: "high",
-          notification: {
-            channelId: "attendance_channel",
-            sound: "default",
-          },
-        },
-        apns: {
-          payload: {aps: {sound: "default"}},
-        },
-        data: {
-          type: "attendance",
-          studentName: name,
-          phone: phone,
-          time: time,
-        },
-        tokens: tokens,
-      };
-
-      const resp = await getMessaging().sendEachForMulticast(message);
-      console.log(`Sent: ${resp.successCount}, Failed: ${resp.failureCount}`);
-
-      // Remove tokens that are no longer valid.
-      const stale = [];
-      resp.responses.forEach((r, i) => {
-        if (!r.success) {
-          const code = r.error && r.error.code;
-          if (
-            code === "messaging/invalid-registration-token" ||
-            code === "messaging/registration-token-not-registered"
-          ) {
-            stale.push(tokens[i]);
-          }
-        }
-      });
-      await Promise.all(
-          stale.map((t) => db.collection("admin_tokens").doc(t).delete()),
+      const tokens = await getAdminTokens();
+      await sendToTokens(
+          tokens,
+          "Student Absent 🔴",
+          `${name} (Roll ${roll}) reported absent today`,
+          {type: "attendance_absent", studentName: name, rollNo: roll},
       );
     },
 );

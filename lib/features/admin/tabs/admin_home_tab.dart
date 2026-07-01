@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../providers/team_provider.dart';
+import '../../../widgets/team_switcher.dart';
 import '../../../core/utils/date_helpers.dart';
 import '../../../data/models/app_student.dart';
 import '../../../data/models/attendance_entry.dart';
@@ -16,11 +19,12 @@ class AdminHomeTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final fs = FirestoreService.instance;
     final today = DateHelpers.todayKey();
+    final teamId = context.watch<TeamProvider>().activeTeamId;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: StreamBuilder<List<AppStudent>>(
-        stream: fs.studentsStream(),
+        stream: fs.studentsStream(teamId: teamId),
         builder: (context, studentSnap) {
           final students = studentSnap.data ?? [];
           final totalStudents = students.length;
@@ -31,9 +35,10 @@ class AdminHomeTab extends StatelessWidget {
               .fold<double>(0, (sum, s) => sum + s.feeAmount);
 
           return StreamBuilder<List<AttendanceEntry>>(
-            stream: fs.attendanceForDateStream(today),
+            stream: fs.attendanceForDateStream(today, teamId: teamId),
             builder: (context, attSnap) {
-              final attendance = attSnap.data ?? [];
+              final attendance =
+                  (attSnap.data ?? []).where((e) => e.isPresent).toList();
               final presentToday = attendance.length;
 
               return CustomScrollView(
@@ -43,26 +48,7 @@ class AdminHomeTab extends StatelessWidget {
                       showLogo: true,
                       tamilTitle: 'வீர விதை',
                       subtitle: 'Admin Dashboard',
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today_rounded,
-                                color: Colors.white, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              DateHelpers.prettyDate(),
-                              style: AppTextStyles.labelSmall
-                                  .copyWith(color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
+                      trailing: const TeamSwitcher(),
                     ),
                   ),
                   SliverPadding(
@@ -180,7 +166,7 @@ class AdminHomeTab extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // Pending leave requests
-                        _LeaveRequestsSection(fs: fs),
+                        _LeaveRequestsSection(fs: fs, teamId: teamId),
 
                         // Recent check-ins
                         Text(
@@ -241,7 +227,8 @@ class AdminHomeTab extends StatelessWidget {
 // ── Pending leave requests with Accept / Decline ──────────────────────────────
 class _LeaveRequestsSection extends StatelessWidget {
   final FirestoreService fs;
-  const _LeaveRequestsSection({required this.fs});
+  final String? teamId;
+  const _LeaveRequestsSection({required this.fs, this.teamId});
 
   Future<void> _setStatus(
       BuildContext context, LeaveRequest l, String status) async {
@@ -263,7 +250,7 @@ class _LeaveRequestsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<LeaveRequest>>(
-      stream: fs.pendingLeavesStream(),
+      stream: fs.pendingLeavesStream(teamId: teamId),
       builder: (context, snap) {
         final leaves = snap.data ?? [];
         if (leaves.isEmpty) return const SizedBox.shrink();
